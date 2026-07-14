@@ -1,97 +1,80 @@
-import os
+"""
+Sam Sidewayz Daily Assistant - Main Entry Point
+
+This module orchestrates the daily briefing workflow:
+1. Retrieve today's calendar events
+2. Get content recommendation for the day
+3. Generate priority for today
+4. Format message
+5. Send to Discord
+
+Runs via GitHub Actions every morning at 7:45 AM.
+"""
+
+import logging
 import sys
-import requests
-from datetime import datetime, timedelta
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
+from typing import Optional
+
+from config import load_config
+from modules.calendar import get_today_events
+from modules.content_calendar import get_content_plan
+from modules.priority import get_priority
+from modules.formatter import format_message
+from modules.discord_sender import send
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 
-# Validate required environment variables
-REQUIRED_SECRETS = {
-    'GOOGLE_REFRESH_TOKEN': 'Google Refresh Token',
-    'GOOGLE_CLIENT_ID': 'Google Client ID',
-    'GOOGLE_CLIENT_SECRET': 'Google Client Secret',
-    'DISCORD_WEBHOOK': 'Discord Webhook URL'
-}
-
-missing_secrets = [name for name in REQUIRED_SECRETS.keys() if not os.getenv(name)]
-if missing_secrets:
-    print(f"Error: Missing required environment variables: {', '.join(missing_secrets)}")
-    sys.exit(1)
-
-DISCORD_WEBHOOK = os.environ["DISCORD_WEBHOOK"]
-
-# Validate Discord webhook is a valid URL
-if not DISCORD_WEBHOOK.startswith('https://'):
-    print("Error: DISCORD_WEBHOOK must be a valid HTTPS URL")
-    sys.exit(1)
-
-SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
-
-
-def get_calendar_events():
-    creds = Credentials(
-        token=None,
-        refresh_token=os.environ["GOOGLE_REFRESH_TOKEN"],
-        token_uri="https://oauth2.googleapis.com/token",
-        client_id=os.environ["GOOGLE_CLIENT_ID"],
-        client_secret=os.environ["GOOGLE_CLIENT_SECRET"],
-        scopes=SCOPES
-    )
-
-    service = build("calendar", "v3", credentials=creds)
-
-    today = datetime.utcnow().date()
-
-    start = datetime.combine(today, datetime.min.time()).isoformat() + "Z"
-    end = datetime.combine(today, datetime.max.time()).isoformat() + "Z"
-
-    events = service.events().list(
-        calendarId="primary",
-        timeMin=start,
-        timeMax=end,
-        singleEvents=True,
-        orderBy="startTime"
-    ).execute()
-
-    return events.get("items", [])
-
-
-def send_discord(message):
-    response = requests.post(
-        DISCORD_WEBHOOK,
-        json={"content": message}
-    )
-    response.raise_for_status()
-
-
-def main():
-    events = get_calendar_events()
-
-    today = datetime.now().strftime("%A %d %B")
-
-    message = f"☀️ **SIDEWAYZ Daily Assistant**\n\n📅 {today}\n\n"
-
-    if not events:
-        message += "No calendar events today. Clear schedule 🔥"
-    else:
-        message += "**Today's Schedule:**\n"
-
-        for event in events:
-            start = event["start"].get(
-                "dateTime",
-                "All day"
-            )
-
-            summary = event.get(
-                "summary",
-                "Untitled"
-            )
-
-            message += f"• {start} — {summary}\n"
-
-    send_discord(message)
+def main() -> int:
+    """
+    Main execution flow for the daily assistant.
+    
+    Returns:
+        0 on success, 1 on failure
+    """
+    try:
+        logger.info("Starting Sam Sidewayz Daily Assistant")
+        
+        # Load configuration
+        config = load_config()
+        logger.info("Configuration loaded successfully")
+        
+        # Get calendar events
+        logger.info("Fetching today's calendar events")
+        calendar_events = get_today_events(config)
+        logger.info(f"Retrieved {len(calendar_events)} events")
+        
+        # Get content plan
+        logger.info("Generating content plan for today")
+        content_plan = get_content_plan()
+        logger.info(f"Content plan: {content_plan['title']}")
+        
+        # Get priority
+        logger.info("Generating priority recommendation")
+        priority = get_priority(calendar_events)
+        logger.info(f"Priority: {priority}")
+        
+        # Format message
+        logger.info("Formatting Discord message")
+        message = format_message(calendar_events, content_plan, priority)
+        
+        # Send to Discord
+        logger.info("Sending message to Discord")
+        send(message, config)
+        logger.info("Message sent successfully")
+        
+        logger.info("Daily assistant completed successfully")
+        return 0
+        
+    except Exception as e:
+        logger.error(f"Fatal error: {e}", exc_info=True)
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
