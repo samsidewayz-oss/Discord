@@ -1,11 +1,30 @@
 import os
+import sys
 import requests
 from datetime import datetime, timedelta
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
 
+# Validate required environment variables
+REQUIRED_SECRETS = {
+    'GOOGLE_REFRESH_TOKEN': 'Google Refresh Token',
+    'GOOGLE_CLIENT_ID': 'Google Client ID',
+    'GOOGLE_CLIENT_SECRET': 'Google Client Secret',
+    'DISCORD_WEBHOOK': 'Discord Webhook URL'
+}
+
+missing_secrets = [name for name in REQUIRED_SECRETS.keys() if not os.getenv(name)]
+if missing_secrets:
+    print(f"Error: Missing required environment variables: {', '.join(missing_secrets)}")
+    sys.exit(1)
+
 DISCORD_WEBHOOK = os.environ["DISCORD_WEBHOOK"]
+
+# Validate Discord webhook is a valid URL
+if not DISCORD_WEBHOOK.startswith('https://'):
+    print("Error: DISCORD_WEBHOOK must be a valid HTTPS URL")
+    sys.exit(1)
 
 SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
 
@@ -39,10 +58,11 @@ def get_calendar_events():
 
 
 def send_discord(message):
-    requests.post(
+    response = requests.post(
         DISCORD_WEBHOOK,
         json={"content": message}
     )
+    response.raise_for_status()
 
 
 def main():
