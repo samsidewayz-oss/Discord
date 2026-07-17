@@ -63,6 +63,10 @@ jobs:
           echo "========== GIT COMMIT =========="
           git rev-parse HEAD
 
+          - name: Test main import
+          run: |
+          python -c "import main; print('✅ main imported successfully')"
+
       - name: Run assistant
         env:
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
