@@ -22,6 +22,47 @@ jobs:
         run: |
           pip install -r requirements.txt
 
+      - name: Debug repository
+        run: |
+          echo "========== CURRENT DIRECTORY =========="
+          pwd
+
+          echo ""
+          echo "========== REPOSITORY ROOT =========="
+          ls -la
+
+          echo ""
+          echo "========== MODULES DIRECTORY =========="
+          ls -la modules || echo "❌ modules directory not found"
+
+          echo ""
+          echo "========== WEATHER FILE =========="
+          cat modules/weather.py || echo "❌ weather.py not found"
+
+          echo ""
+          echo "========== PYTHON VERSION =========="
+          python --version
+
+          echo ""
+          echo "========== PYTHON PATH =========="
+          python -c "import sys; print('\n'.join(sys.path))"
+
+          echo ""
+          echo "========== TEST IMPORT: modules =========="
+          python -c "import modules; print('✅ modules imported successfully')"
+
+          echo ""
+          echo "========== TEST IMPORT: weather =========="
+          python -c "import modules.weather; print('✅ weather imported successfully')"
+
+          echo ""
+          echo "========== TEST IMPORT: formatter =========="
+          python -c "import modules.formatter; print('✅ formatter imported successfully')"
+
+          echo ""
+          echo "========== GIT COMMIT =========="
+          git rev-parse HEAD
+
       - name: Run assistant
         env:
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
