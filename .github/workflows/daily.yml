@@ -63,8 +63,8 @@ jobs:
           echo "========== GIT COMMIT =========="
           git rev-parse HEAD
 
-          - name: Test main import
-          run: |
+      - name: Test main import
+        run: |
           python -c "import main; print('✅ main imported successfully')"
 
       - name: Run assistant
