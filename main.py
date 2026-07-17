@@ -89,7 +89,7 @@ def main() -> int:
         return 0
         
     except ConfigError as e:
-        logger.error(f"Configuration error: {e}")
+        logger.error(f"Configuration error dumb ass: {e}")
         return 1
     except DiscordSendError as e:
         logger.error(f"Discord send error: {e}")
